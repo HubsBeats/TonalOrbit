@@ -64,12 +64,12 @@ export function useAudio() {
     }
   }, []);
 
-  const playChord = useCallback(async (notes: string[]) => {
+  const playChord = useCallback(async (notes: string[], duration = 2.0) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      const wav = generateChordWav(notes, 2.0);
+      const wav = generateChordWav(notes, duration);
       await playBase64Wav(wav);
     } catch (e) {
       console.warn("playChord error:", e);

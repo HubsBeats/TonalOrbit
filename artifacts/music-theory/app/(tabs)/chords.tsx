@@ -50,14 +50,23 @@ export default function ChordsScreen() {
     setPlayingArpeggio(null);
   };
 
+  // 100bpm = 600ms per beat; each chord plays for 1 beat then transitions
+  const BPM = 100;
+  const MS_PER_BEAT = Math.round(60000 / BPM); // 600ms
+  const CHORD_AUDIO_DURATION = MS_PER_BEAT / 1000 + 0.15; // 0.75s — decays slightly past the beat
+
   const handlePlayProgression = async (degrees: number[]) => {
     for (const degree of degrees) {
       const chord = scaleData.chords.find((c) => c.degree === degree);
       if (chord) {
         setPlayingChord(chord.degree);
-        await playChord(chord.notes);
+        const start = Date.now();
+        await playChord(chord.notes, CHORD_AUDIO_DURATION);
+        // Wait the remainder of the beat so each chord starts exactly MS_PER_BEAT apart
+        const elapsed = Date.now() - start;
+        const remaining = MS_PER_BEAT - elapsed;
+        if (remaining > 0) await delay(remaining);
         setPlayingChord(null);
-        await delay(150);
       }
     }
   };
