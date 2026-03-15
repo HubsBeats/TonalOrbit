@@ -1,6 +1,8 @@
 import React from "react";
 import {
+  ActivityIndicator,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,11 +13,16 @@ import Colors from "@/constants/colors";
 import { useMusicContext } from "@/context/MusicContext";
 import { CircleOfFifths } from "@/components/CircleOfFifths";
 import { CIRCLE_OF_FIFTHS } from "@/lib/musicTheory";
+import { useAudio } from "@/hooks/useAudio";
+import { Feather } from "@expo/vector-icons";
+import { useState } from "react";
 
 export default function CircleScreen() {
   const { selectedKey, setKey } = useMusicContext();
   const insets = useSafeAreaInsets();
   const colors = Colors.light;
+  const { playNote, playChord } = useAudio();
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 100 : insets.bottom + 90;
@@ -27,24 +34,73 @@ export default function CircleScreen() {
     sfCount < 0 ? `${Math.abs(sfCount)} flat${Math.abs(sfCount) > 1 ? "s" : ""}` :
     "No sharps or flats";
 
+  const handleSelectKey = async (key: string) => {
+    setKey(key);
+    setPlayingKey(key);
+    await playNote(key, 4);
+    setPlayingKey(null);
+  };
+
+  const handlePlayMajorChord = async (key: string) => {
+    if (playingKey === key + "chord") return;
+    setPlayingKey(key + "chord");
+    // Major triad: root, major 3rd (+4st), perfect 5th (+7st)
+    const rootIdx = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"].indexOf(key);
+    if (rootIdx === -1) {
+      await playNote(key, 4);
+    } else {
+      const allNotes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+      const third = allNotes[(rootIdx + 4) % 12];
+      const fifth = allNotes[(rootIdx + 7) % 12];
+      await playChord([key, third, fifth]);
+    }
+    setPlayingKey(null);
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
         <Text style={styles.headerTitle}>Circle of Fifths</Text>
-        <Text style={styles.headerSubtitle}>Tap any key to select it</Text>
+        <Text style={styles.headerSubtitle}>Tap any key to hear & select it</Text>
       </View>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: bottomPad, paddingHorizontal: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        <CircleOfFifths activeKey={selectedKey} onSelectKey={setKey} />
+        <CircleOfFifths activeKey={selectedKey} onSelectKey={handleSelectKey} />
 
         {currentEntry && (
           <View style={styles.keyInfo}>
             <View style={[styles.keyInfoHeader, { backgroundColor: colors.tint }]}>
-              <Text style={styles.keyInfoTitle}>{currentEntry.major} Major</Text>
-              <Text style={styles.keyInfoSub}>{currentEntry.minor} — Relative Minor</Text>
+              <View>
+                <Text style={styles.keyInfoTitle}>{currentEntry.major} Major</Text>
+                <Text style={styles.keyInfoSub}>{currentEntry.minor} — Relative Minor</Text>
+              </View>
+              <View style={styles.keyAudioBtns}>
+                <Pressable
+                  onPress={() => handleSelectKey(currentEntry.major)}
+                  style={styles.audioBtn}
+                >
+                  {playingKey === currentEntry.major ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Feather name="music" size={16} color="#fff" />
+                  )}
+                  <Text style={styles.audioBtnText}>Note</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handlePlayMajorChord(currentEntry.major)}
+                  style={styles.audioBtn}
+                >
+                  {playingKey === currentEntry.major + "chord" ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Feather name="layers" size={16} color="#fff" />
+                  )}
+                  <Text style={styles.audioBtnText}>Chord</Text>
+                </Pressable>
+              </View>
             </View>
             <View style={styles.keyInfoBody}>
               <InfoRow label="Key Signature" value={sfLabel} />
@@ -58,7 +114,7 @@ export default function CircleScreen() {
           <Text style={styles.theoryTitle}>Understanding the Circle of Fifths</Text>
           <TheorySection
             title="What is it?"
-            text="The Circle of Fifths is a diagram showing the 12 major keys arranged in a circle, where each key is a perfect fifth above the previous one. Moving clockwise adds sharps; counter-clockwise adds flats."
+            text="The Circle of Fifths shows all 12 major keys arranged in a circle where each key is a perfect fifth above the previous. Moving clockwise adds sharps; counter-clockwise adds flats."
           />
           <TheorySection
             title="Major Keys (Outer Ring)"
@@ -72,24 +128,29 @@ export default function CircleScreen() {
             title="Perfect Fifth Relationship"
             text="Moving clockwise by a perfect fifth (7 semitones) adds one sharp. Moving counter-clockwise adds one flat. C major has no sharps or flats."
           />
-          <TheorySection
-            title="Chord Borrowing"
-            text="Neighboring keys on the circle share many common chords, making modulation and chord borrowing between adjacent keys feel natural."
-          />
         </View>
 
         <View style={styles.fifthsTable}>
-          <Text style={styles.fifthsTitle}>All Keys — Sharps & Flats</Text>
+          <Text style={styles.fifthsTitle}>All Keys — Tap to Hear</Text>
           {CIRCLE_OF_FIFTHS.map((k) => (
-            <View key={k.key} style={styles.fifthsRow}>
+            <Pressable
+              key={k.key}
+              onPress={() => handleSelectKey(k.major)}
+              style={({ pressed }) => [styles.fifthsRow, pressed && { opacity: 0.7 }]}
+            >
               <View style={[styles.fifthsKeyBadge, selectedKey === k.major && { backgroundColor: colors.tint }]}>
-                <Text style={[styles.fifthsKey, selectedKey === k.major && { color: "#fff" }]}>{k.major}</Text>
+                {playingKey === k.major ? (
+                  <ActivityIndicator size="small" color={selectedKey === k.major ? "#fff" : colors.tint} />
+                ) : (
+                  <Text style={[styles.fifthsKey, selectedKey === k.major && { color: "#fff" }]}>{k.major}</Text>
+                )}
               </View>
               <Text style={styles.fifthsMinor}>{k.minor}</Text>
               <Text style={styles.fifthsSF}>
                 {k.sharpsFlats === 0 ? "♮ None" : k.sharpsFlats > 0 ? `${k.sharpsFlats}♯` : `${Math.abs(k.sharpsFlats)}♭`}
               </Text>
-            </View>
+              <Feather name="volume-2" size={14} color={colors.border} />
+            </Pressable>
           ))}
         </View>
       </ScrollView>
@@ -136,8 +197,8 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: Colors.light.textSecondary,
+    fontSize: 13,
+    color: Colors.light.tint,
     marginTop: 2,
   },
   keyInfo: {
@@ -152,6 +213,9 @@ const styles = StyleSheet.create({
   },
   keyInfoHeader: {
     padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   keyInfoTitle: {
     fontFamily: "Inter_700Bold",
@@ -163,6 +227,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.8)",
     marginTop: 2,
+  },
+  keyAudioBtns: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  audioBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+    gap: 4,
+    minWidth: 50,
+  },
+  audioBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    color: "#fff",
   },
   keyInfoBody: {
     backgroundColor: Colors.light.surface,
@@ -231,7 +313,7 @@ const styles = StyleSheet.create({
   fifthsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
     gap: 12,

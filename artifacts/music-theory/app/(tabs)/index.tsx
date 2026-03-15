@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  FlatList,
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -14,20 +14,42 @@ import Colors from "@/constants/colors";
 import { useMusicContext } from "@/context/MusicContext";
 import { NoteChip } from "@/components/NoteChip";
 import { StepSequencer } from "@/components/StepSequencer";
-import { SCALE_CATEGORIES, SCALE_DEFINITIONS, ScaleName, ALL_KEYS } from "@/lib/musicTheory";
+import { SCALE_CATEGORIES, SCALE_DEFINITIONS, ScaleName } from "@/lib/musicTheory";
+import { useAudio } from "@/hooks/useAudio";
 
 const DISPLAY_KEYS = ["C", "G", "D", "A", "E", "B", "F#", "Gb", "Db", "Ab", "Eb", "Bb", "F"];
+
+function getDegreeLabel(i: number): string {
+  const labels: Record<number, string> = {
+    0: "Root", 1: "2nd", 2: "3rd", 3: "4th", 4: "5th", 5: "6th", 6: "7th",
+  };
+  return labels[i] || "";
+}
 
 export default function ScaleScreen() {
   const { selectedKey, selectedScale, scaleData, setKey, setScale } = useMusicContext();
   const insets = useSafeAreaInsets();
   const colors = Colors.light;
   const [showScalePicker, setShowScalePicker] = useState(false);
+  const [playingScale, setPlayingScale] = useState(false);
+  const [playingNote, setPlayingNote] = useState<string | null>(null);
+  const { playNote, playScale } = useAudio();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 100 : insets.bottom + 90;
 
-  const scaleNames = Object.keys(SCALE_DEFINITIONS) as ScaleName[];
+  const handlePlayNote = useCallback(async (note: string) => {
+    setPlayingNote(note);
+    await playNote(note, 4);
+    setPlayingNote(null);
+  }, [playNote]);
+
+  const handlePlayScale = useCallback(async () => {
+    if (playingScale) return;
+    setPlayingScale(true);
+    await playScale(scaleData.notes);
+    setPlayingScale(false);
+  }, [playingScale, playScale, scaleData.notes]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -42,13 +64,14 @@ export default function ScaleScreen() {
         contentContainerStyle={{ paddingBottom: bottomPad }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Key selector */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>SELECT KEY</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.keyRow}>
             {DISPLAY_KEYS.map((key) => (
               <Pressable
                 key={key}
-                onPress={() => setKey(key)}
+                onPress={() => { setKey(key); handlePlayNote(key); }}
                 style={({ pressed }) => [
                   styles.keyBtn,
                   selectedKey === key && { backgroundColor: colors.tint },
@@ -61,15 +84,16 @@ export default function ScaleScreen() {
           </ScrollView>
         </View>
 
+        {/* Scale selector */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>SELECT SCALE</Text>
           <Pressable
             onPress={() => setShowScalePicker(!showScalePicker)}
             style={styles.scalePicker}
           >
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.scalePickerKey}>{selectedKey} {selectedScale}</Text>
-              <Text style={styles.scalePickerDesc}>{scaleData.scaleInfo.description}</Text>
+              <Text style={styles.scalePickerDesc} numberOfLines={1}>{scaleData.scaleInfo.description}</Text>
             </View>
             <Feather name={showScalePicker ? "chevron-up" : "chevron-down"} size={20} color={colors.tint} />
           </Pressable>
@@ -99,9 +123,25 @@ export default function ScaleScreen() {
           )}
         </View>
 
+        {/* Scale hero card */}
         <View style={[styles.scaleHighlight, { backgroundColor: colors.tint }]}>
-          <Text style={styles.highlightKey}>{selectedKey}</Text>
-          <Text style={styles.highlightScale}>{selectedScale}</Text>
+          <View style={styles.highlightTop}>
+            <View>
+              <Text style={styles.highlightKey}>{selectedKey}</Text>
+              <Text style={styles.highlightScale}>{selectedScale}</Text>
+            </View>
+            <Pressable
+              onPress={handlePlayScale}
+              style={({ pressed }) => [styles.playScaleBtn, pressed && { opacity: 0.7 }]}
+            >
+              {playingScale ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Feather name="play" size={22} color="#fff" />
+              )}
+              <Text style={styles.playScaleText}>{playingScale ? "Playing…" : "Play Scale"}</Text>
+            </Pressable>
+          </View>
           <View style={styles.moodRow}>
             {scaleData.scaleInfo.moods.map((mood) => (
               <View key={mood} style={styles.moodTag}>
@@ -111,23 +151,37 @@ export default function ScaleScreen() {
           </View>
         </View>
 
+        {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>NOTES IN SCALE</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>NOTES IN SCALE</Text>
+            <Text style={styles.sectionHint}>Tap any note to hear it</Text>
+          </View>
           <View style={styles.card}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.notesRow}>
                 {scaleData.notes.map((note, i) => (
-                  <View key={i} style={styles.noteWithDegree}>
-                    <NoteChip note={note} isRoot={i === 0} size="lg" />
+                  <Pressable
+                    key={i}
+                    onPress={() => handlePlayNote(note)}
+                    style={({ pressed }) => [styles.noteWithDegree, pressed && { opacity: 0.6 }]}
+                  >
+                    <View style={playingNote === note ? styles.notePlaying : undefined}>
+                      <NoteChip note={note} isRoot={i === 0} size="lg" />
+                    </View>
                     <Text style={styles.degreeNum}>{i + 1}</Text>
-                    <Text style={styles.degreeName}>{getDegreeLabel(i, scaleData.scale)}</Text>
-                  </View>
+                    <Text style={styles.degreeName}>{getDegreeLabel(i)}</Text>
+                    {playingNote === note && (
+                      <View style={styles.soundIndicator} />
+                    )}
+                  </Pressable>
                 ))}
               </View>
             </ScrollView>
           </View>
         </View>
 
+        {/* Relative keys */}
         {(scaleData.relativeMinor || scaleData.relativeMajor) && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>RELATIVE KEYS</Text>
@@ -135,47 +189,48 @@ export default function ScaleScreen() {
               {scaleData.relativeMinor && (
                 <Pressable
                   style={styles.relativeCard}
-                  onPress={() => { setKey(scaleData.relativeMinor!); setScale("Natural Minor"); }}
+                  onPress={() => { handlePlayNote(scaleData.relativeMinor!); }}
                 >
                   <Text style={styles.relativeLabel}>Relative Minor</Text>
                   <Text style={styles.relativeKey}>{scaleData.relativeMinor}m</Text>
-                  <Feather name="arrow-right" size={16} color={colors.tint} />
+                  <Feather name="volume-2" size={14} color={colors.tint} />
                 </Pressable>
               )}
               {scaleData.relativeMajor && (
                 <Pressable
                   style={styles.relativeCard}
-                  onPress={() => { setKey(scaleData.relativeMajor!); setScale("Major"); }}
+                  onPress={() => handlePlayNote(scaleData.relativeMajor!)}
                 >
                   <Text style={styles.relativeLabel}>Relative Major</Text>
                   <Text style={styles.relativeKey}>{scaleData.relativeMajor}</Text>
-                  <Feather name="arrow-right" size={16} color={colors.tint} />
+                  <Feather name="volume-2" size={14} color={colors.tint} />
                 </Pressable>
               )}
               {scaleData.parallelMinor && (
                 <Pressable
                   style={[styles.relativeCard, { borderColor: Colors.light.chord.minor }]}
-                  onPress={() => { setScale("Natural Minor"); }}
+                  onPress={() => handlePlayNote(selectedKey)}
                 >
                   <Text style={styles.relativeLabel}>Parallel Minor</Text>
                   <Text style={[styles.relativeKey, { color: Colors.light.chord.minor }]}>{scaleData.parallelMinor}m</Text>
-                  <Feather name="arrow-right" size={16} color={Colors.light.chord.minor} />
+                  <Feather name="volume-2" size={14} color={Colors.light.chord.minor} />
                 </Pressable>
               )}
               {scaleData.parallelMajor && (
                 <Pressable
                   style={[styles.relativeCard, { borderColor: Colors.light.chord.major }]}
-                  onPress={() => { setScale("Major"); }}
+                  onPress={() => handlePlayNote(selectedKey)}
                 >
                   <Text style={styles.relativeLabel}>Parallel Major</Text>
                   <Text style={[styles.relativeKey, { color: Colors.light.chord.major }]}>{scaleData.parallelMajor}</Text>
-                  <Feather name="arrow-right" size={16} color={Colors.light.chord.major} />
+                  <Feather name="volume-2" size={14} color={Colors.light.chord.major} />
                 </Pressable>
               )}
             </View>
           </View>
         )}
 
+        {/* Step sequencer */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>STEP SEQUENCER</Text>
           <View style={styles.card}>
@@ -183,6 +238,7 @@ export default function ScaleScreen() {
           </View>
         </View>
 
+        {/* Scale info */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>SCALE INFO</Text>
           <View style={styles.card}>
@@ -206,19 +262,6 @@ export default function ScaleScreen() {
       </ScrollView>
     </View>
   );
-}
-
-function getDegreeLabel(i: number, scale: ScaleName): string {
-  const labels: Record<number, string> = {
-    0: "Root",
-    1: "2nd",
-    2: "3rd",
-    3: "4th",
-    4: "5th",
-    5: "6th",
-    6: "7th",
-  };
-  return labels[i] || "";
 }
 
 const styles = StyleSheet.create({
@@ -245,11 +288,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
   sectionLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     color: Colors.light.textSecondary,
     letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  sectionHint: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    color: Colors.light.tint,
     marginBottom: 10,
   },
   keyRow: {
@@ -336,6 +391,12 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 20,
   },
+  highlightTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
   highlightKey: {
     fontFamily: "Inter_700Bold",
     fontSize: 48,
@@ -346,7 +407,20 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     fontSize: 18,
     color: "rgba(255,255,255,0.85)",
-    marginBottom: 12,
+  },
+  playScaleBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    gap: 4,
+    minWidth: 90,
+  },
+  playScaleText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    color: "#fff",
   },
   moodRow: {
     flexDirection: "row",
@@ -382,6 +456,20 @@ const styles = StyleSheet.create({
   noteWithDegree: {
     alignItems: "center",
     gap: 4,
+  },
+  notePlaying: {
+    transform: [{ scale: 1.15 }],
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  soundIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.light.tint,
   },
   degreeNum: {
     fontFamily: "Inter_700Bold",
@@ -427,7 +515,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
-    gap: 16,
+    gap: 10,
   },
   infoItem: {
     flex: 1,
