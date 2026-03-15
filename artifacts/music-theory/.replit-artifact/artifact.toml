@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Visual Music Theory"
+version = "1.0.0"
+id = "artifacts/music-theory"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+localPort = 22233
+name = "expo"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/music-theory run dev"
+
+[services.env]
+PORT = "22233"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/music-theory", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/music-theory", "run", "serve"]
