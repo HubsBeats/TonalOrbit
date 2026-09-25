@@ -1,0 +1,94 @@
+workflows:
+  android-test-apk:
+    name: Tonal Orbit - Test APK
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: 22.13.0
+      java: 17
+      ndk: 27.1.12297006
+    cache:
+      cache_paths:
+        - $HOME/.pnpm-store
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+    scripts:
+      - name: Install pnpm
+        script: |
+          npm install --global pnpm@10.26.1
+          pnpm config set store-dir "$HOME/.pnpm-store"
+      - name: Install workspace dependencies
+        script: pnpm install --frozen-lockfile
+      - name: Check the Expo app
+        script: pnpm --filter @workspace/music-theory run typecheck
+      - name: Generate the Android project
+        script: |
+          CI=1 pnpm --filter @workspace/music-theory exec expo prebuild \
+            --platform android \
+            --clean \
+            --no-install
+      - name: Set the Android version code
+        script: |
+          node scripts/configure-android-version.mjs \
+            artifacts/music-theory/android/app/build.gradle
+      - name: Set the Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > artifacts/music-theory/android/local.properties
+          chmod +x artifacts/music-theory/android/gradlew
+      - name: Build the standalone test APK
+        script: |
+          cd artifacts/music-theory/android
+          NODE_ENV=production ./gradlew assembleRelease
+    artifacts:
+      - artifacts/music-theory/android/app/build/outputs/apk/release/*.apk
+
+  android-signed-release:
+    name: Tonal Orbit - Signed APK and AAB
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      node: 22.13.0
+      java: 17
+      ndk: 27.1.12297006
+      android_signing:
+        - tonal_orbit_keystore
+    cache:
+      cache_paths:
+        - $HOME/.pnpm-store
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+    scripts:
+      - name: Install pnpm
+        script: |
+          npm install --global pnpm@10.26.1
+          pnpm config set store-dir "$HOME/.pnpm-store"
+      - name: Install workspace dependencies
+        script: pnpm install --frozen-lockfile
+      - name: Check the Expo app
+        script: pnpm --filter @workspace/music-theory run typecheck
+      - name: Generate the Android project
+        script: |
+          CI=1 pnpm --filter @workspace/music-theory exec expo prebuild \
+            --platform android \
+            --clean \
+            --no-install
+      - name: Set the Android version code
+        script: |
+          node scripts/configure-android-version.mjs \
+            artifacts/music-theory/android/app/build.gradle
+      - name: Configure release signing
+        script: |
+          node scripts/configure-android-signing.mjs \
+            artifacts/music-theory/android/app/build.gradle
+      - name: Set the Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > artifacts/music-theory/android/local.properties
+          chmod +x artifacts/music-theory/android/gradlew
+      - name: Build the signed APK and Play Store bundle
+        script: |
+          cd artifacts/music-theory/android
+          NODE_ENV=production ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - artifacts/music-theory/android/app/build/outputs/apk/release/*.apk
+      - artifacts/music-theory/android/app/build/outputs/bundle/release/*.aab
+      - artifacts/music-theory/android/app/build/outputs/mapping/release/mapping.txt
