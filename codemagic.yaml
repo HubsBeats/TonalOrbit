@@ -15,7 +15,7 @@ workflows:
     scripts:
       - name: Install pnpm
         script: |
-          npm install --global pnpm@10.26.1
+          npm install --global pnpm@10.26.1 --force
           pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Install workspace dependencies
         script: pnpm install --frozen-lockfile
@@ -60,7 +60,7 @@ workflows:
     scripts:
       - name: Install pnpm
         script: |
-          npm install --global pnpm@10.26.1
+          npm install --global pnpm@10.26.1 --force
           pnpm config set store-dir "$HOME/.pnpm-store"
       - name: Install workspace dependencies
         script: pnpm install --frozen-lockfile
