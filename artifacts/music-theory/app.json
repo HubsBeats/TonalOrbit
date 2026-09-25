@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Music Theory",
-    "slug": "music-theory",
+    "name": "Tonal Orbit",
+    "slug": "tonalorbit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "music-theory",
+    "scheme": "tonalorbit",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -14,16 +14,18 @@
       "backgroundColor": "#F8F7FF"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tonalorbit.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#F8F7FF"
-      }
+      },
+      "package": "com.tonalorbit.app"
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       [
