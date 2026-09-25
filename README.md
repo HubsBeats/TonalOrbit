@@ -47,6 +47,10 @@ pnpm --filter @workspace/music-theory run dev
 
 Then open the app in Expo Go or an available simulator.
 
+## Android APK and Play Store builds
+
+The repository includes Codemagic workflows for a standalone test APK and a production-signed APK/AAB. Follow the [Codemagic Android build guide](./docs/CODEMAGIC_ANDROID_BUILD.md) for the complete setup, signing, download, installation, and troubleshooting steps.
+
 ## Project structure
 
 ```text

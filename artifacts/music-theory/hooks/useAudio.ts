@@ -1,5 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Haptics from "expo-haptics";
 import { useCallback, useRef } from "react";
 import { Platform } from "react-native";
@@ -14,7 +14,7 @@ let audioModeSet = false;
 async function ensureAudioMode() {
   if (audioModeSet) return;
   try {
-    await setAudioModeAsync({ playsInSilentModeIOS: true });
+    await setAudioModeAsync({ playsInSilentMode: true });
     audioModeSet = true;
   } catch {}
 }

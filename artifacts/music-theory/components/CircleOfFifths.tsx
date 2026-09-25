@@ -97,7 +97,7 @@ export function CircleOfFifths({ activeKey, onSelectKey }: CircleOfFifthsProps) 
                 x={outerPos.x}
                 y={outerPos.y + 1}
                 textAnchor="middle"
-                dominantBaseline="middle"
+                alignmentBaseline="middle"
                 fontSize={isActive ? 14 : 13}
                 fontWeight={isActive ? "bold" : "600"}
                 fill={isActive ? "#fff" : colors.text}
@@ -108,7 +108,7 @@ export function CircleOfFifths({ activeKey, onSelectKey }: CircleOfFifthsProps) 
                 x={innerPos.x}
                 y={innerPos.y}
                 textAnchor="middle"
-                dominantBaseline="middle"
+                alignmentBaseline="middle"
                 fontSize={10}
                 fill={isActive ? colors.tintDark : colors.textSecondary}
               >
@@ -123,7 +123,7 @@ export function CircleOfFifths({ activeKey, onSelectKey }: CircleOfFifthsProps) 
           x={CENTER}
           y={CENTER - 10}
           textAnchor="middle"
-          dominantBaseline="middle"
+          alignmentBaseline="middle"
           fontSize={12}
           fontWeight="bold"
           fill={colors.tint}
@@ -134,7 +134,7 @@ export function CircleOfFifths({ activeKey, onSelectKey }: CircleOfFifthsProps) 
           x={CENTER}
           y={CENTER + 6}
           textAnchor="middle"
-          dominantBaseline="middle"
+          alignmentBaseline="middle"
           fontSize={11}
           fill={colors.textSecondary}
         >
